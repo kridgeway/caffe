@@ -105,9 +105,12 @@ class StatsLayer : public Layer<Dtype> {
    */
   explicit StatsLayer(const LayerParameter& param)
       : Layer<Dtype>(param), ofs_(NULL) {}
-  virtual ~StatsLayer() { 
-    ofs_->close(); 
-    delete ofs_;
+  virtual ~StatsLayer() {
+    if( ofs_ != NULL ) {
+      if (ofs_->is_open())
+        ofs_->close();
+      delete ofs_;
+    }
   }
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
@@ -376,6 +379,36 @@ class EuclideanLossLayer : public LossLayer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
   Blob<Dtype> diff_;
+};
+
+template <typename Dtype>
+class WeightedEuclideanLossLayer : public LossLayer<Dtype> {
+ public:
+  explicit WeightedEuclideanLossLayer(const LayerParameter& param)
+      : LossLayer<Dtype>(param), diff_() {}
+  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  virtual inline const char* type() const { return "WeightedEuclideanLoss"; }
+  virtual inline bool AllowForceBackward(const int bottom_index) const {
+    return true;
+  }
+  // Two vectors and the weighting
+  virtual inline int ExactNumBottomBlobs() const { return 3; }
+ protected:
+  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+
+  void Apply_weights(Blob<Dtype>& blob, Blob<Dtype>& bottomWeights);
+
+  Blob<Dtype> diff_;
+  Blob<Dtype> weighted_squared_diff_;
 };
 
 /**
