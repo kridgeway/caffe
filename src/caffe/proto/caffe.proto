@@ -828,6 +828,7 @@ message V1LayerParameter {
     THRESHOLD = 31;
     STATS = 40;
     NORMALIZE = 41;
+    WEIGHTED_EUCLIDEAN_LOSS = 42;
   }
   optional LayerType type = 5;
   repeated BlobProto blobs = 6;
