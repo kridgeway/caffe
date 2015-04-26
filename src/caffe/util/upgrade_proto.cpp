@@ -929,6 +929,8 @@ const char* UpgradeV1LayerType(const V1LayerParameter_LayerType type) {
     return "WeightedEuclideanLoss";
   case V1LayerParameter_LayerType_NON_BINARY_PENALTY_LOSS:
     return "NonBinaryPenaltyLoss";
+  case V1LayerParameter_LayerType_BINARY_TANH:
+    return "BinaryTanH";
   default:
     LOG(FATAL) << "Unknown V1LayerParameter layer type: " << type;
     return "";

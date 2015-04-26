@@ -738,6 +738,24 @@ class PReLULayer : public NeuronLayer<Dtype> {
   Blob<Dtype> bottom_memory_;  // memory for in-place computation
 };
 
+template <typename Dtype>
+class BinaryTanHLayer : public NeuronLayer<Dtype> {
+ public:
+  explicit BinaryTanHLayer(const LayerParameter& param)
+      : NeuronLayer<Dtype>(param) {}
+  virtual inline const char* type() const { return "BinaryTanH"; }
+
+  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+
+ protected:
+  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  Blob<Dtype> top_unbinarized_;  // memory for in-place computation
+};
+
 }  // namespace caffe
 
 #endif  // CAFFE_NEURON_LAYERS_HPP_
