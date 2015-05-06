@@ -56,5 +56,6 @@ STUB_GPU(BinaryTanHLayer);
 #endif
 
 INSTANTIATE_CLASS(BinaryTanHLayer);
+REGISTER_LAYER_CLASS(BinaryTanH);
 
 }
