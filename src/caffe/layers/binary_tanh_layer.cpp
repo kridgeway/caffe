@@ -51,9 +51,6 @@ void BinaryTanHLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   }
 }
 
-#ifdef CPU_ONLY
-STUB_GPU(BinaryTanHLayer);
-#endif
 
 INSTANTIATE_CLASS(BinaryTanHLayer);
 REGISTER_LAYER_CLASS(BinaryTanH);

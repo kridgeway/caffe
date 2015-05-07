@@ -78,10 +78,6 @@ void NonBinaryPenaltyLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& 
     }
 }
 
-#ifdef CPU_ONLY
-STUB_GPU(NonBinaryPenaltyLossLayer);
-#endif
-
 INSTANTIATE_CLASS(NonBinaryPenaltyLossLayer);
 REGISTER_LAYER_CLASS(NonBinaryPenaltyLoss);
 
