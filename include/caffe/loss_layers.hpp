@@ -866,6 +866,37 @@ class NonBinaryPenaltyLossLayer : public LossLayer<Dtype> {
   Blob<Dtype> non_binary_penalty_;
 };
 
+typedef struct _IplImage IplImage;
+template <typename Dtype>
+class SSIMLossLayer : public LossLayer<Dtype> {
+ public:
+  explicit SSIMLossLayer(const LayerParameter& param);
+  virtual ~SSIMLossLayer();
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  virtual inline const char* type() const { return "SSIMLoss"; }
+  virtual inline int ExactNumBottomBlobs() const { return 2; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
+ protected:
+  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+
+  IplImage
+		*img1, *img2, *img1_img2,
+		*img1_sq, *img2_sq,
+		*mu1, *mu2,
+		*mu1_sq, *mu2_sq, *mu1_mu2,
+		*sigma1_sq, *sigma2_sq, *sigma12,
+		*ssim_map, *temp1, *temp2, *temp3;
+  Blob<Dtype> img1_reformatted_;
+  Blob<Dtype> img2_reformatted_;
+  Blob<Dtype> diff_;
+};
+
 }  // namespace caffe
 
 #endif  // CAFFE_LOSS_LAYERS_HPP_

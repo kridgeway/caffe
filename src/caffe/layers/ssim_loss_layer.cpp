@@ -11,10 +11,10 @@
 namespace caffe {
 
 template <typename Dtype>
-SSIMLayer<Dtype>::SSIMLayer(const LayerParameter& param) : Layer<Dtype>(param) { }
+SSIMLossLayer<Dtype>::SSIMLossLayer(const LayerParameter& param) : Layer<Dtype>(param) { }
 
 template <typename Dtype>
-void SSIMLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+void SSIMLossLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   //int x=img1_temp->width, y=img1_temp->height;
   size_t dim = (size_t)(bottom[0]->count() / bottom[0]->num());
@@ -46,7 +46,7 @@ void SSIMLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 }
 
 template <typename Dtype>
-SSIMLayer<Dtype>::~SSIMLayer() {
+SSIMLossLayer<Dtype>::~SSIMLossLayer() {
   cvReleaseImageHeader(&img1);
   cvReleaseImageHeader(&img2);
   cvReleaseImage(&img1_sq);
@@ -67,19 +67,20 @@ SSIMLayer<Dtype>::~SSIMLayer() {
 }
 
 template <typename Dtype>
-void SSIMLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
+void SSIMLossLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
                                   const vector<Blob<Dtype>*>& top) {
   for (int i = 1; i < bottom.size(); ++i) {
     CHECK(bottom[i]->shape() == bottom[0]->shape());
   }
-  top[0]->ReshapeLike(*bottom[0]);
+  //top[0]->ReshapeLike(*bottom[0]);
   img1_reformatted_.ReshapeLike(*bottom[0]);
   img2_reformatted_.ReshapeLike(*bottom[0]);
+  diff_.ReshapeLike(*bottom[0]);
 }
 
 
 template <typename Dtype>
-void SSIMLayer<Dtype>::Forward_cpu(
+void SSIMLossLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   size_t dim = (size_t)(bottom[0]->count() / bottom[0]->num());
   int width = (int)( sqrt(dim/3) );
@@ -91,7 +92,7 @@ void SSIMLayer<Dtype>::Forward_cpu(
 
   const Dtype* bottom0data = bottom[0]->cpu_data();
   const Dtype* bottom1data = bottom[1]->cpu_data();
-  Dtype* topData = top[0]->mutable_cpu_data();
+  Dtype* diffData = diff_->mutable_cpu_data();
 
   for( size_t image_idx = 0; image_idx < bottom[0]->num(); image_idx++ ) {
     const Dtype* img1_data = bottom0data + image_idx*imageSize;
@@ -169,29 +170,55 @@ void SSIMLayer<Dtype>::Forward_cpu(
     // ((2*mu1_mu2 + C1).*(2*sigma12 + C2))./((mu1_sq + mu2_sq + C1).*(sigma1_sq + sigma2_sq + C2))
     cvDiv( temp3, temp1, ssim_map, 1 );
 
-    //CvScalar index_scalar = cvAvg( ssim_map );
-    //printf("SSIM r=%.2f g=%.2f b=%.2f\n", index_scalar.val[2] * 100, index_scalar.val[1] * 100, index_scalar.val[0] * 100 );
 
-    // Step 3 copy ssim_map to top
+    // Step 3 copy ssim_map mean to top
     Dtype* data = (Dtype*)ssim_map->imageData;
+    CvScalar index_scalar = cvAvg( ssim_map );
+    //printf("SSIM r=%.2f g=%.2f b=%.2f\n", index_scalar.val[2] * 100, index_scalar.val[1] * 100, index_scalar.val[0] * 100 );
+    top[0]->mutable_cpu_data()[0] = (index_scalar.val[0] + index_scalar.val[1] + index_scalar.val[2] ) / 3.0f;
+    top[0]->mutable_cpu_data()[0] = (top[0]->mutable_cpu_data()[0]*0.5f)+0.5f;
 
-    Dtype* target = topData + image_idx*imageSize;
-
-    memcpy( target, data, imageSize*sizeof(Dtype) );
+    Dtype* targetData = diffData + image_idx*imageSize;
+    for( int chan_idx = 0; chan_idx < nChan; chan_idx++ ) {
+      for( int row_idx = 0; row_idx < height; row_idx++) {
+        for(int col_idx = 0; col_idx < width; col_idx++ ) {
+          int target = chan_idx * width * height + row_idx * width + col_idx;
+          int source = row_idx * width * nChan + col_idx * nChan + chan_idx;
+          targetData[target] = data[source];
+        }
+      }
+    }
 
     // Rescale to [0,1]
     caffe_scal(
         imageSize,
         Dtype(0.5),
-        target);
+        targetData);
     caffe_add_scalar(
         imageSize,
         Dtype(0.5),
-        target);
+        targetData);
+  }
+}
+template <typename Dtype>
+void SSIMLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
+    const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
+  for (int i = 0; i < 2; ++i) {
+    if (propagate_down[i]) {
+      const Dtype sign = (i == 0) ? 1 : -1;
+      const Dtype alpha = sign * top[0]->cpu_diff()[0] / bottom[i]->num();
+      caffe_cpu_axpby(
+          bottom[i]->count(),
+          alpha,
+          diff_.cpu_data(),
+          Dtype(0),
+          bottom[i]->mutable_cpu_diff()
+      );
+    }
   }
 }
 
-INSTANTIATE_CLASS(SSIMLayer);
-REGISTER_LAYER_CLASS(SSIM);
+INSTANTIATE_CLASS(SSIMLossLayer);
+REGISTER_LAYER_CLASS(SSIMLoss);
 
 }

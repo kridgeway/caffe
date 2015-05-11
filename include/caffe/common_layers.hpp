@@ -13,8 +13,6 @@
 #include "caffe/neuron_layers.hpp"
 #include "caffe/proto/caffe.pb.h"
 
-typedef struct _IplImage IplImage;
-
 namespace caffe {
 
 /**
@@ -516,47 +514,6 @@ protected:
   Dtype scale_;
 };
 
-template <typename Dtype>
-class SSIMLayer : public Layer<Dtype> {
- public:
-  explicit SSIMLayer(const LayerParameter& param);
-  virtual ~SSIMLayer();
-  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-  virtual inline const char* type() const { return "SSIM"; }
-  virtual inline int ExactNumBottomBlobs() const { return 2; }
-  virtual inline int ExactNumTopBlobs() const { return 1; }
- protected:
-  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-  //virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
-  //    const vector<Blob<Dtype>*>& top); 
-
-  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
-    for (int i = 0; i < propagate_down.size(); ++i) {
-      if (propagate_down[i]) {
-        caffe_set(bottom[i]->count(),
-            Dtype(0),
-            bottom[0]->mutable_cpu_data() );
-      }
-    }
-  }
-  //virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-  //    const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
-
-  IplImage
-		*img1, *img2, *img1_img2,
-		*img1_sq, *img2_sq,
-		*mu1, *mu2,
-		*mu1_sq, *mu2_sq, *mu1_mu2,
-		*sigma1_sq, *sigma2_sq, *sigma12,
-		*ssim_map, *temp1, *temp2, *temp3;
-  Blob<Dtype> img1_reformatted_;
-  Blob<Dtype> img2_reformatted_;
-};
 
 }  // namespace caffe
 
