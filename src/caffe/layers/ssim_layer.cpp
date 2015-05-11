@@ -11,27 +11,7 @@
 namespace caffe {
 
 template <typename Dtype>
-SSIMLayer<Dtype>::SSIMLayer(const LayerParameter& param) : Layer<Dtype>(param) {
-  CHECK(param.has_ssim_param());
-  const std::string mean_file = param.ssim_param().mean_file();
-  scale_ = param.ssim_param().scale();
-  LOG(INFO) << "Loading mean file from: " << mean_file;
-  LOG(INFO) << "Scaling by " << scale_;
-  BlobProto blob_proto;
-  ReadProtoFromBinaryFileOrDie(mean_file.c_str(), &blob_proto);
-  data_mean_.FromProto(blob_proto);
-
-  // scale the mean
-  caffe_scal( data_mean_.count(),
-      scale_,
-      data_mean_.mutable_cpu_data() );
-
-  vector<int> flatShape(2);
-  flatShape[0] = 1;
-  flatShape[1] = data_mean_.count();
-  data_mean_flat_.Reshape( flatShape );
-  data_mean_flat_.ShareData( data_mean_ );
-}
+SSIMLayer<Dtype>::SSIMLayer(const LayerParameter& param) : Layer<Dtype>(param) { }
 
 template <typename Dtype>
 void SSIMLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
@@ -93,32 +73,10 @@ void SSIMLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
     CHECK(bottom[i]->shape() == bottom[0]->shape());
   }
   top[0]->ReshapeLike(*bottom[0]);
-  img1_.ReshapeLike(*bottom[0]);
-  img2_.ReshapeLike(*bottom[0]);
   img1_reformatted_.ReshapeLike(*bottom[0]);
   img2_reformatted_.ReshapeLike(*bottom[0]);
 }
 
-template <typename Dtype>
-void SSIMLayer<Dtype>::Rescale( Blob<Dtype>* source, Blob<Dtype>& target ) {
-  int d = source->count() / source->num();
-  caffe_copy(source->count(), source->cpu_data(), target.mutable_cpu_data());
-  for( int idx =0; idx < source->num(); idx++ ) {
-    // add the mean back in
-    caffe_add(
-        d,
-        source->cpu_data()+idx*d,
-        data_mean_flat_.cpu_data(),
-        target.mutable_cpu_data()+idx*d
-    );
-    //scale back to [0,255]
-    caffe_scal(
-        d,
-        Dtype(1.0) / scale_,
-        target.mutable_cpu_data()+idx*d
-    );
-  }
-}
 
 template <typename Dtype>
 void SSIMLayer<Dtype>::Forward_cpu(
@@ -131,11 +89,10 @@ void SSIMLayer<Dtype>::Forward_cpu(
   // default settings
   double C1 = 6.5025, C2 = 58.5225;
 
-  Rescale( bottom[0], img1_ );
-  Rescale( bottom[1], img2_ );
-  Dtype* bottom0data = img1_.mutable_cpu_data();
-  Dtype* bottom1data = img2_.mutable_cpu_data();
+  const Dtype* bottom0data = bottom[0]->cpu_data();
+  const Dtype* bottom1data = bottom[1]->cpu_data();
   Dtype* topData = top[0]->mutable_cpu_data();
+
   for( size_t image_idx = 0; image_idx < bottom[0]->num(); image_idx++ ) {
     const Dtype* img1_data = bottom0data + image_idx*imageSize;
     const Dtype* img2_data = bottom1data + image_idx*imageSize;

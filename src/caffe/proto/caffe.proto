@@ -329,7 +329,7 @@ message LayerParameter {
   optional SigmoidParameter sigmoid_param = 124;
   optional SoftmaxParameter softmax_param = 125;
   optional SliceParameter slice_param = 126;
-  optional SSIMParameter ssim_param = 2001;
+  optional RescaleImageParameter rescale_image_param = 2001;
   optional TanHParameter tanh_param = 127;
   optional ThresholdParameter threshold_param = 128;
   optional WindowDataParameter window_data_param = 129;
@@ -730,7 +730,7 @@ message SoftmaxParameter {
   optional int32 axis = 2 [default = 1];
 }
 
-message SSIMParameter {
+message RescaleImageParameter {
   required string mean_file = 1;
   required float scale = 2;
 }
@@ -838,6 +838,7 @@ message V1LayerParameter {
     NON_BINARY_PENALTY_LOSS = 43;
     BINARY_TANH = 44;
     SSIM = 45;
+    RESCALE_IMAGE = 46;
   }
   optional LayerType type = 5;
   repeated BlobProto blobs = 6;
@@ -875,7 +876,7 @@ message V1LayerParameter {
   optional SigmoidParameter sigmoid_param = 38;
   optional SoftmaxParameter softmax_param = 39;
   optional SliceParameter slice_param = 31;
-  optional SSIMParameter ssim_param = 2001;
+  optional RescaleImageParameter rescale_image_param = 2001;
   optional TanHParameter tanh_param = 37;
   optional ThresholdParameter threshold_param = 25;
   optional WindowDataParameter window_data_param = 20;

@@ -490,6 +490,33 @@ class SliceLayer : public Layer<Dtype> {
 };
 
 template <typename Dtype>
+class RescaleImageLayer : public Layer<Dtype> {
+public:
+  explicit RescaleImageLayer(const LayerParameter& param);
+  virtual ~RescaleImageLayer() { }
+  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  virtual inline const char* type() const { return "RescaleImageLayer"; }
+protected:
+  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
+    for (int i = 0; i < propagate_down.size(); ++i) {
+      if (propagate_down[i]) {
+        caffe_set(bottom[i]->count(),
+            Dtype(0),
+            bottom[0]->mutable_cpu_data() );
+      }
+    }
+  }
+  void Rescale( Blob<Dtype>* source, Blob<Dtype>* target );
+  Blob<Dtype> data_mean_;
+  Blob<Dtype> data_mean_flat_;
+  Dtype scale_;
+};
+
+template <typename Dtype>
 class SSIMLayer : public Layer<Dtype> {
  public:
   explicit SSIMLayer(const LayerParameter& param);
@@ -517,7 +544,6 @@ class SSIMLayer : public Layer<Dtype> {
       }
     }
   }
-  void Rescale( Blob<Dtype>* source, Blob<Dtype>& target );
   //virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
   //    const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
@@ -528,13 +554,8 @@ class SSIMLayer : public Layer<Dtype> {
 		*mu1_sq, *mu2_sq, *mu1_mu2,
 		*sigma1_sq, *sigma2_sq, *sigma12,
 		*ssim_map, *temp1, *temp2, *temp3;
-  Blob<Dtype> data_mean_;
-  Blob<Dtype> data_mean_flat_;
-  Blob<Dtype> img1_;
-  Blob<Dtype> img2_;
   Blob<Dtype> img1_reformatted_;
   Blob<Dtype> img2_reformatted_;
-  Dtype scale_;
 };
 
 }  // namespace caffe

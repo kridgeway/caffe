@@ -808,9 +808,9 @@ bool UpgradeV1LayerParameter(const V1LayerParameter& v1_layer_param,
     layer_param->mutable_slice_param()->CopyFrom(
         v1_layer_param.slice_param());
   }
-  if (v1_layer_param.has_ssim_param()) {
-    layer_param->mutable_ssim_param()->CopyFrom(
-        v1_layer_param.ssim_param());
+  if (v1_layer_param.has_rescale_image_param()) {
+    layer_param->mutable_rescale_image_param()->CopyFrom(
+        v1_layer_param.rescale_image_param());
   }
   if (v1_layer_param.has_tanh_param()) {
     layer_param->mutable_tanh_param()->CopyFrom(
@@ -937,6 +937,8 @@ const char* UpgradeV1LayerType(const V1LayerParameter_LayerType type) {
     return "BinaryTanH";
   case V1LayerParameter_LayerType_SSIM:
     return "SSIM";
+  case V1LayerParameter_LayerType_RESCALE_IMAGE:
+    return "RescaleImage";
   default:
     LOG(FATAL) << "Unknown V1LayerParameter layer type: " << type;
     return "";
