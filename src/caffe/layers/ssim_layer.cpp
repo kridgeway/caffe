@@ -4,9 +4,34 @@
 #include "caffe/layer.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/vision_layers.hpp"
+#include "caffe/util/io.hpp"
 #include <cv.h>	
+#include <highgui.h>
 
 namespace caffe {
+
+template <typename Dtype>
+SSIMLayer<Dtype>::SSIMLayer(const LayerParameter& param) : Layer<Dtype>(param) {
+  CHECK(param.has_ssim_param());
+  const std::string mean_file = param.ssim_param().mean_file();
+  scale_ = param.ssim_param().scale();
+  LOG(INFO) << "Loading mean file from: " << mean_file;
+  LOG(INFO) << "Scaling by " << scale_;
+  BlobProto blob_proto;
+  ReadProtoFromBinaryFileOrDie(mean_file.c_str(), &blob_proto);
+  data_mean_.FromProto(blob_proto);
+
+  // scale the mean
+  caffe_scal( data_mean_.count(),
+      scale_,
+      data_mean_.mutable_cpu_data() );
+
+  vector<int> flatShape(2);
+  flatShape[0] = 1;
+  flatShape[1] = data_mean_.count();
+  data_mean_flat_.Reshape( flatShape );
+  data_mean_flat_.ShareData( data_mean_ );
+}
 
 template <typename Dtype>
 void SSIMLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
@@ -19,10 +44,10 @@ void SSIMLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 	int nChan=3, d=IPL_DEPTH_32F;
 	CvSize size = cvSize(x, y);
 
-  img1_temp = cvCreateImage( size, d, nChan);
-  img2_temp = cvCreateImage( size, d, nChan);
-	img1 = cvCreateImage( size, d, nChan);
-	img2 = cvCreateImage( size, d, nChan);
+	//img1 = cvCreateImage( size, d, nChan);
+	//img2 = cvCreateImage( size, d, nChan);
+  img1 = cvCreateImageHeader(size, d, nChan);
+  img2 = cvCreateImageHeader(size, d, nChan);
 	img1_sq = cvCreateImage( size, d, nChan);
 	img2_sq = cvCreateImage( size, d, nChan);
 	img1_img2 = cvCreateImage( size, d, nChan);
@@ -42,12 +67,11 @@ void SSIMLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
 template <typename Dtype>
 SSIMLayer<Dtype>::~SSIMLayer() {
-  cvReleaseImage(&img1);
-  cvReleaseImage(&img2);
-  cvReleaseImage(&img1_temp);
-  cvReleaseImage(&img2_temp);
+  cvReleaseImageHeader(&img1);
+  cvReleaseImageHeader(&img2);
   cvReleaseImage(&img1_sq);
   cvReleaseImage(&img2_sq);
+  cvReleaseImage(&img1_img2);
   cvReleaseImage(&mu1);
   cvReleaseImage(&mu2);
   cvReleaseImage(&mu1_sq);
@@ -56,10 +80,10 @@ SSIMLayer<Dtype>::~SSIMLayer() {
   cvReleaseImage(&sigma1_sq);
   cvReleaseImage(&sigma2_sq);
   cvReleaseImage(&sigma12);
-  cvReleaseImage(&ssim_map);
   cvReleaseImage(&temp1);
   cvReleaseImage(&temp2);
   cvReleaseImage(&temp3);
+  cvReleaseImage(&ssim_map);
 }
 
 template <typename Dtype>
@@ -69,6 +93,31 @@ void SSIMLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
     CHECK(bottom[i]->shape() == bottom[0]->shape());
   }
   top[0]->ReshapeLike(*bottom[0]);
+  img1_.ReshapeLike(*bottom[0]);
+  img2_.ReshapeLike(*bottom[0]);
+  img1_reformatted_.ReshapeLike(*bottom[0]);
+  img2_reformatted_.ReshapeLike(*bottom[0]);
+}
+
+template <typename Dtype>
+void SSIMLayer<Dtype>::Rescale( Blob<Dtype>* source, Blob<Dtype>& target ) {
+  int d = source->count() / source->num();
+  caffe_copy(source->count(), source->cpu_data(), target.mutable_cpu_data());
+  for( int idx =0; idx < source->num(); idx++ ) {
+    // add the mean back in
+    caffe_add(
+        d,
+        source->cpu_data()+idx*d,
+        data_mean_flat_.cpu_data(),
+        target.mutable_cpu_data()+idx*d
+    );
+    //scale back to [0,255]
+    caffe_scal(
+        d,
+        Dtype(1.0) / scale_,
+        target.mutable_cpu_data()+idx*d
+    );
+  }
 }
 
 template <typename Dtype>
@@ -78,19 +127,47 @@ void SSIMLayer<Dtype>::Forward_cpu(
   int width = (int)( sqrt(dim/3) );
   int height = width;
   int nChan=3, d=IPL_DEPTH_32F;
+  size_t imageSize = width*height*nChan;
   // default settings
   double C1 = 6.5025, C2 = 58.5225;
+
+  Rescale( bottom[0], img1_ );
+  Rescale( bottom[1], img2_ );
+  Dtype* bottom0data = img1_.mutable_cpu_data();
+  Dtype* bottom1data = img2_.mutable_cpu_data();
+  Dtype* topData = top[0]->mutable_cpu_data();
   for( size_t image_idx = 0; image_idx < bottom[0]->num(); image_idx++ ) {
-    // TODO step 1, get image data into img1 and img2
-    cvSetData(img1, (void*)bottom[0]->cpu_data(), (int)sizeof(Dtype)*width*nChan );
-    cvSetData(img2, (void*)bottom[1]->cpu_data(), (int)sizeof(Dtype)*width*nChan );
+    const Dtype* img1_data = bottom0data + image_idx*imageSize;
+    const Dtype* img2_data = bottom1data + image_idx*imageSize;
+
+    Dtype* img1_data_rfmt = img1_reformatted_.mutable_cpu_data() + image_idx * imageSize;
+    Dtype* img2_data_rfmt = img2_reformatted_.mutable_cpu_data() + image_idx * imageSize;
+
+    // step 1, get image data into img1 and img2
+    //TODO this is the worst
+    for( int chan_idx = 0; chan_idx < nChan; chan_idx++ ) {
+      for( int row_idx = 0; row_idx < height; row_idx++) {
+        for(int col_idx = 0; col_idx < width; col_idx++ ) {
+          int source = chan_idx * width * height + row_idx * width + col_idx;
+          int target = row_idx * width * nChan + col_idx * nChan + chan_idx;
+          img1_data_rfmt[target] = img1_data[source];
+          img2_data_rfmt[target] = img2_data[source];
+        }
+      }
+    }
+    cvSetData(img1, (void*) img1_data_rfmt, img1->widthStep );
+    cvSetData(img2, (void*) img2_data_rfmt,  img1->widthStep );
+
+    /**
+    IplImage  *out  = cvCreateImage( cvSize(width,height), IPL_DEPTH_8U, 3);
+    cvCvtScale(img1,out,1,0);
+    cvSaveImage("img1.png",out);
+    cvCvtScale(img2,out,1,0);
+    cvSaveImage("img2.png",out);
+    cvReleaseImage(&out);
+    */
 
     // Step 2, calculate ssim_map
-    //cvConvert(img1_temp, img1);
-    //cvConvert(img2_temp, img2);
-    //cvReleaseImage(&img1_temp);
-    //cvReleaseImage(&img2_temp);
-    
     cvPow( img1, img1_sq, 2 );
     cvPow( img2, img2_sq, 2 );
     cvMul( img1, img2, img1_img2, 1 );
@@ -135,10 +212,29 @@ void SSIMLayer<Dtype>::Forward_cpu(
     // ((2*mu1_mu2 + C1).*(2*sigma12 + C2))./((mu1_sq + mu2_sq + C1).*(sigma1_sq + sigma2_sq + C2))
     cvDiv( temp3, temp1, ssim_map, 1 );
 
+    //CvScalar index_scalar = cvAvg( ssim_map );
+    //printf("SSIM r=%.2f g=%.2f b=%.2f\n", index_scalar.val[2] * 100, index_scalar.val[1] * 100, index_scalar.val[0] * 100 );
+
     // Step 3 copy ssim_map to top
     Dtype* data = (Dtype*)ssim_map->imageData;
-    memcpy( top[0]->mutable_cpu_data(), data, sizeof(Dtype)*ssim_map->width*ssim_map->height*ssim_map->nChannels );
+
+    Dtype* target = topData + image_idx*imageSize;
+
+    memcpy( target, data, imageSize*sizeof(Dtype) );
+
+    // Rescale to [0,1]
+    caffe_scal(
+        imageSize,
+        Dtype(0.5),
+        target);
+    caffe_add_scalar(
+        imageSize,
+        Dtype(0.5),
+        target);
   }
 }
+
+INSTANTIATE_CLASS(SSIMLayer);
+REGISTER_LAYER_CLASS(SSIM);
 
 }
