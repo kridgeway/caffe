@@ -68,6 +68,7 @@ void WeightedEuclideanLossLayer<Dtype>::Apply_weights( Blob<Dtype>& blob,
           weights,
           blob.mutable_cpu_data()+idx*d
       );
+      /*
       Dtype sumWeights = caffe_cpu_asum( d, weights );
       Dtype weightScale = Dtype(d) / sumWeights;
       caffe_scal(
@@ -75,6 +76,7 @@ void WeightedEuclideanLossLayer<Dtype>::Apply_weights( Blob<Dtype>& blob,
           weightScale,
           blob.mutable_cpu_data()+idx*d
       );
+      */
   }
 }
       /*
