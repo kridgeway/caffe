@@ -49,7 +49,7 @@ void SSIMLossLayer<Dtype>::Forward_cpu(
   int width = (int)( sqrt(dim/3) );
   int height = width;
   int nChan=3, d=IPL_DEPTH_32F;
-  size_t imageSize = (size_t) width*height*nChan;
+  int imageSize = width*height*nChan;
   const Dtype* bottom0data = bottom[0]->cpu_data();
   const Dtype* bottom1data = bottom[1]->cpu_data();
   //Dtype* topData = top[0]->mutable_cpu_data();
@@ -61,7 +61,7 @@ void SSIMLossLayer<Dtype>::Forward_cpu(
     Dtype* target = topData + image_idx*imageSize;
     ssim.CalculateSSIM(img1_data, img2_data, target);
 
-    // Rescale to [0,1]
+    // Rescale to [0,1], find 1 - ssim
     caffe_scal(
       imageSize,
       Dtype(-0.5),
@@ -76,6 +76,12 @@ void SSIMLossLayer<Dtype>::Forward_cpu(
       target[didx] = target[didx] * (Dtype)caffe_sign( diffData[didx] );
     }
   }
+  Dtype dot = caffe_cpu_dot(count,
+    ssim_data_.cpu_data(),
+    ssim_data_.cpu_data()
+  );
+  Dtype loss = dot / bottom[0]->num() / Dtype(2);
+  top[0]->mutable_cpu_data()[0] = loss;
 }
 
 template <typename Dtype>
@@ -88,9 +94,9 @@ void SSIMLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       const Dtype alpha = sign * top[0]->cpu_diff()[0] / bottom[i]->num();
       caffe_cpu_axpby(
         bottom[i]->count(),              // count
-        alpha,                              // alpha
-        ssim_data_.cpu_data(),                   // a
-        Dtype(0),                           // beta
+        alpha,                           // alpha
+        ssim_data_.cpu_data(),           // a
+        Dtype(0),                        // beta
         bottom[i]->mutable_cpu_diff());  // b
     }
   }

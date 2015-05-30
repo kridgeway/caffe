@@ -86,7 +86,7 @@ void SSIM<Dtype>::CalculateSSIM(const Dtype *img1_data,
     }
   }
   cvSetData(img1, (void *) img1_data_rfmt, img1->widthStep);
-  cvSetData(img2, (void *) img2_data_rfmt, img1->widthStep);
+  cvSetData(img2, (void *) img2_data_rfmt, img2->widthStep);
 
   /**
   IplImage  *out  = cvCreateImage( cvSize(width,height), IPL_DEPTH_8U, 3);
@@ -147,9 +147,16 @@ void SSIM<Dtype>::CalculateSSIM(const Dtype *img1_data,
 
   // Step 3 copy ssim_map to top
   Dtype *data = (Dtype *) ssim_map->imageData;
-
-  size_t imageSize = (size_t) width_ * height_ * nChan_;
-  memcpy(target, data, imageSize * sizeof(Dtype));
+  //Dtype* target = topData + image_idx*imageSize;
+  for( int chan_idx = 0; chan_idx < nChan_; chan_idx++ ) {
+    for( int row_idx = 0; row_idx < height_; row_idx++) {
+      for(int col_idx = 0; col_idx < width_; col_idx++ ) {
+        int target_idx = chan_idx * width_ * height_ + row_idx * width_ + col_idx;
+        int source_idx = row_idx * width_ * nChan_ + col_idx * nChan_ + chan_idx;
+        target[target_idx] = data[source_idx];
+      }
+    }
+  }
 }
 
 INSTANTIATE_CLASS(SSIM);
