@@ -2,6 +2,7 @@
 #define CAFFE_COMMON_LAYERS_HPP_
 
 #include <string>
+
 #include <utility>
 #include <vector>
 
@@ -12,6 +13,7 @@
 #include "caffe/loss_layers.hpp"
 #include "caffe/neuron_layers.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/util/ssim.hpp"
 
 typedef struct _IplImage IplImage;
 
@@ -544,18 +546,8 @@ class SSIMLayer : public Layer<Dtype> {
       }
     }
   }
-  //virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-  //    const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
-  IplImage
-		*img1, *img2, *img1_img2,
-		*img1_sq, *img2_sq,
-		*mu1, *mu2,
-		*mu1_sq, *mu2_sq, *mu1_mu2,
-		*sigma1_sq, *sigma2_sq, *sigma12,
-		*ssim_map, *temp1, *temp2, *temp3;
-  Blob<Dtype> img1_reformatted_;
-  Blob<Dtype> img2_reformatted_;
+  SSIM<Dtype> ssim;
 };
 
 }  // namespace caffe

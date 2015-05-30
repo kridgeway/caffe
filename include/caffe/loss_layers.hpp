@@ -2,6 +2,7 @@
 #define CAFFE_LOSS_LAYERS_HPP_
 
 #include <string>
+
 #include <utility>
 #include <vector>
 
@@ -10,6 +11,8 @@
 #include "caffe/layer.hpp"
 #include "caffe/neuron_layers.hpp"
 #include "caffe/proto/caffe.pb.h"
+#include "caffe/util/ssim.hpp"
+
 
 namespace caffe {
 
@@ -864,6 +867,34 @@ class NonBinaryPenaltyLossLayer : public LossLayer<Dtype> {
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
   Blob<Dtype> non_binary_penalty_;
+};
+
+typedef struct _IplImage IplImage;
+
+template <typename Dtype>
+class SSIMLossLayer : public LossLayer<Dtype> {
+public:
+  explicit SSIMLossLayer(const LayerParameter& param)
+    : LossLayer<Dtype>(param) {}
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+                          const vector<Blob<Dtype>*>& top);
+  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
+                       const vector<Blob<Dtype>*>& top);
+  virtual inline int ExactNumBottomBlobs() const { return 2; }
+  virtual inline bool AllowForceBackward(const int bottom_index) const {
+    return true;
+  }
+  virtual inline const char* type() const { return "SSIMLoss"; }
+protected:
+  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+                           const vector<Blob<Dtype>*>& top);
+
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+                            const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  Blob<Dtype> diff_;
+  Blob<Dtype> ssim_data_;
+
+  SSIM<Dtype> ssim;
 };
 
 }  // namespace caffe
