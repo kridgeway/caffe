@@ -68,7 +68,6 @@ void WeightedEuclideanLossLayer<Dtype>::Apply_weights( Blob<Dtype>& blob,
           weights,
           blob.mutable_cpu_data()+idx*d
       );
-      /*
       Dtype sumWeights = caffe_cpu_asum( d, weights );
       Dtype weightScale = Dtype(d) / sumWeights;
       caffe_scal(
@@ -76,22 +75,8 @@ void WeightedEuclideanLossLayer<Dtype>::Apply_weights( Blob<Dtype>& blob,
           weightScale,
           blob.mutable_cpu_data()+idx*d
       );
-      */
   }
 }
-      /*
-      TODO: do we have to normalize the weights?
-      Dtype sumweights = caffe_cpu_asum<Dtype>(
-          d, weights
-      );
-      printf("Sumweights %.2f\n", sumweights);
-      caffe_cpu_scale(
-          d,
-          Dtype(1.0 / sumweights),
-          diff_.mutable_cpu_data() + idx*d,
-          diff_.mutable_cpu_data() + idx*d
-      );
-      */
 
 template <typename Dtype>
 void WeightedEuclideanLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,

@@ -7,6 +7,7 @@
 #include "caffe/util/io.hpp"
 #include <cv.h>	
 #include <highgui.h>
+#include <math.h>
 
 namespace caffe {
 
@@ -101,28 +102,39 @@ void SSIMLayer<Dtype>::Forward_cpu(
     Dtype* img2_data_rfmt = img2_reformatted_.mutable_cpu_data() + image_idx * imageSize;
 
     // step 1, get image data into img1 and img2
-    //TODO this is the worst
     for( int chan_idx = 0; chan_idx < nChan; chan_idx++ ) {
       for( int row_idx = 0; row_idx < height; row_idx++) {
         for(int col_idx = 0; col_idx < width; col_idx++ ) {
           int source = chan_idx * width * height + row_idx * width + col_idx;
           int target = row_idx * width * nChan + col_idx * nChan + chan_idx;
-          img1_data_rfmt[target] = img1_data[source];
-          img2_data_rfmt[target] = img2_data[source];
+          img1_data_rfmt[target] =(Dtype) roundf( img1_data[source] );
+          img2_data_rfmt[target] = (Dtype) roundf( img2_data[source] );
         }
       }
     }
     cvSetData(img1, (void*) img1_data_rfmt, img1->widthStep );
-    cvSetData(img2, (void*) img2_data_rfmt,  img1->widthStep );
+    cvSetData(img2, (void*) img2_data_rfmt,  img2->widthStep );
 
-    /**
+    /*
+    for( int i = 0; i < 30; i++ ) {
+      printf("%.4f ", ((float*)img1->imageData)[i] );
+    }
+    printf("\n");
+    for( int i = 0; i < 30; i++ ) {
+      printf("%.4f ", ((float*)img2->imageData)[i] );
+    }
+    printf("\n");
+    */
+
     IplImage  *out  = cvCreateImage( cvSize(width,height), IPL_DEPTH_8U, 3);
     cvCvtScale(img1,out,1,0);
     cvSaveImage("img1.png",out);
-    cvCvtScale(img2,out,1,0);
-    cvSaveImage("img2.png",out);
     cvReleaseImage(&out);
-    */
+
+    IplImage  *out2  = cvCreateImage( cvSize(width,height), IPL_DEPTH_8U, 3);
+    cvCvtScale(img2,out2,1,0);
+    cvSaveImage("img2.png",out2);
+    cvReleaseImage(&out2);
 
     // Step 2, calculate ssim_map
     cvPow( img1, img1_sq, 2 );
@@ -169,25 +181,46 @@ void SSIMLayer<Dtype>::Forward_cpu(
     // ((2*mu1_mu2 + C1).*(2*sigma12 + C2))./((mu1_sq + mu2_sq + C1).*(sigma1_sq + sigma2_sq + C2))
     cvDiv( temp3, temp1, ssim_map, 1 );
 
-    //CvScalar index_scalar = cvAvg( ssim_map );
+    CvScalar index_scalar = cvAvg( ssim_map );
     //printf("SSIM r=%.2f g=%.2f b=%.2f\n", index_scalar.val[2] * 100, index_scalar.val[1] * 100, index_scalar.val[0] * 100 );
 
     // Step 3 copy ssim_map to top
     Dtype* data = (Dtype*)ssim_map->imageData;
 
     Dtype* target = topData + image_idx*imageSize;
+    for( int chan_idx = 0; chan_idx < nChan; chan_idx++ ) {
+      for( int row_idx = 0; row_idx < height; row_idx++) {
+        for(int col_idx = 0; col_idx < width; col_idx++ ) {
+          int target_idx = chan_idx * width * height + row_idx * width + col_idx;
+          int source_idx = row_idx * width * nChan + col_idx * nChan + chan_idx;
+          target[target_idx] = data[source_idx];
+        }
+      }
+    }
 
-    memcpy( target, data, imageSize*sizeof(Dtype) );
+    /*
+    for( int ii = 0; ii < height*width*nChan; ii ++ ) {
+      printf("%.4f ", target[ii] );
+    }
+    printf("\n");
+    */
 
     // Rescale to [0,1]
     caffe_scal(
         imageSize,
-        Dtype(0.5),
+        Dtype(-.5),
         target);
     caffe_add_scalar(
         imageSize,
         Dtype(0.5),
         target);
+    /*
+    caffe_powx(//TODO experimental
+        imageSize,
+        target,
+        Dtype(2.0),
+        target);
+        */
   }
 }
 
