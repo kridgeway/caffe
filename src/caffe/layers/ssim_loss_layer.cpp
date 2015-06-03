@@ -36,49 +36,27 @@ void SSIMLossLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   int count = bottom[0]->count();
-  // diff_ = a - b
-  caffe_sub(
-    count,
-    bottom[0]->cpu_data(),
-    bottom[1]->cpu_data(),
-    diff_.mutable_cpu_data());
 
   size_t dim = (size_t)(bottom[0]->count() / bottom[0]->num());
   int width = (int)( sqrt(dim/3) );
   int height = width;
-  int nChan=3, d=IPL_DEPTH_32F;
+  int nChan=3;
   int imageSize = width*height*nChan;
   const Dtype* bottom0data = bottom[0]->cpu_data();
   const Dtype* bottom1data = bottom[1]->cpu_data();
+  //Dtype* topData = top[0]->mutable_cpu_data();
+  Dtype* topData = ssim_data_.mutable_cpu_data();
+  Dtype* gradientData = diff_.mutable_cpu_data();
 
   for( size_t image_idx = 0; image_idx < bottom[0]->num(); image_idx++ ) {
     const Dtype* img1_data = bottom0data + image_idx*imageSize;
     const Dtype* img2_data = bottom1data + image_idx*imageSize;
-    Dtype* target = ssim_data_.mutable_cpu_data() + image_idx*imageSize;
-    //ssim.debug = image_idx == 0;
-    ssim.CalculateSSIM(img1_data, img2_data, target);
-    // Rescale to [0,1], find 1 - ssim
-    caffe_scal(
-      imageSize,
-      Dtype(-0.5),
-      target);
-    caffe_add_scalar(
-      imageSize,
-      Dtype(0.5),
-      target);
-    //if( image_idx == 0 )
-    //  printf("%f\n", target[0]);
-    // Set the sign equal to the sign of the L1 diff
-    Dtype* diffData = diff_.mutable_cpu_data() + image_idx * imageSize;
-    for( int didx=0; didx < dim; didx++ ) {
-      target[didx] = target[didx] * (Dtype)caffe_sign( diffData[didx] );
-    }
+    Dtype* target = topData + image_idx*imageSize;
+    Dtype* target_gradient = gradientData + image_idx *imageSize;
+    ssim.CalculateSSIM(img1_data, img2_data, target, target_gradient);
   }
-  Dtype dot = caffe_cpu_dot(count,
-    ssim_data_.cpu_data(),
-    ssim_data_.cpu_data()
-  );
-  Dtype loss = dot / bottom[0]->num() / Dtype(2);
+  Dtype sumSSIM = caffe_cpu_asum(count, ssim_data_.cpu_data() );
+  Dtype loss =  sumSSIM / bottom[0]->count();
   top[0]->mutable_cpu_data()[0] = loss;
 }
 
@@ -91,11 +69,11 @@ void SSIMLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       const Dtype sign = (i == 0) ? 1 : -1;
       const Dtype alpha = sign * top[0]->cpu_diff()[0] / bottom[i]->num();
       caffe_cpu_axpby(
-        bottom[i]->count(),              // count
-        alpha,                           // alpha
-        ssim_data_.cpu_data(),           // a
-        Dtype(0),                        // beta
-        bottom[i]->mutable_cpu_diff());  // b
+        bottom[i]->count(),
+        alpha,
+        diff_.cpu_data(),
+        Dtype(0),
+        bottom[i]->mutable_cpu_diff());
     }
   }
 }
