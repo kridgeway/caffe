@@ -875,7 +875,7 @@ template <typename Dtype>
 class SSIMLossLayer : public LossLayer<Dtype> {
 public:
   explicit SSIMLossLayer(const LayerParameter& param)
-    : LossLayer<Dtype>(param) {}
+    : LossLayer<Dtype>(param), diff_(), ssim_data_() {}
   virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
                           const vector<Blob<Dtype>*>& top);
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,

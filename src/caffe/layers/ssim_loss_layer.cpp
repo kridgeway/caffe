@@ -11,11 +11,9 @@ template<typename Dtype>
 void SSIMLossLayer<Dtype>::Reshape(
   const vector<Blob<Dtype> *> &bottom, const vector<Blob<Dtype> *> &top) {
   LossLayer<Dtype>::Reshape(bottom, top);
-  CHECK_EQ(bottom[0]->count(1), bottom[1]->count(1))
-    << "Inputs must have the same dimension.";
-  CHECK_EQ(bottom[0]->count(1), bottom[2]->count(1)) << "Weight data must have same dimension";
+  CHECK_EQ(bottom[0]->count(1), bottom[1]->count(1)) << "Inputs must have the same dimension.";
+  CHECK_EQ(bottom[0]->count(1), bottom[1]->count(1)) << "Weight data must have same dimension";
   diff_.ReshapeLike(*bottom[0]);
-  //weighted_squared_diff_.ReshapeLike(*bottom[0]);
   ssim_data_.ReshapeLike(*bottom[0]);
   vector<int> shape = bottom[0]->shape();
   shape[0] = 1;
@@ -52,15 +50,13 @@ void SSIMLossLayer<Dtype>::Forward_cpu(
   int imageSize = width*height*nChan;
   const Dtype* bottom0data = bottom[0]->cpu_data();
   const Dtype* bottom1data = bottom[1]->cpu_data();
-  //Dtype* topData = top[0]->mutable_cpu_data();
-  Dtype* topData = ssim_data_.mutable_cpu_data();
 
   for( size_t image_idx = 0; image_idx < bottom[0]->num(); image_idx++ ) {
     const Dtype* img1_data = bottom0data + image_idx*imageSize;
     const Dtype* img2_data = bottom1data + image_idx*imageSize;
-    Dtype* target = topData + image_idx*imageSize;
+    Dtype* target = ssim_data_.mutable_cpu_data() + image_idx*imageSize;
+    //ssim.debug = image_idx == 0;
     ssim.CalculateSSIM(img1_data, img2_data, target);
-
     // Rescale to [0,1], find 1 - ssim
     caffe_scal(
       imageSize,
@@ -70,8 +66,10 @@ void SSIMLossLayer<Dtype>::Forward_cpu(
       imageSize,
       Dtype(0.5),
       target);
+    //if( image_idx == 0 )
+    //  printf("%f\n", target[0]);
     // Set the sign equal to the sign of the L1 diff
-    Dtype* diffData = diff_.mutable_cpu_data() + image_idx + imageSize;
+    Dtype* diffData = diff_.mutable_cpu_data() + image_idx * imageSize;
     for( int didx=0; didx < dim; didx++ ) {
       target[didx] = target[didx] * (Dtype)caffe_sign( diffData[didx] );
     }

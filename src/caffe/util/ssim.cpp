@@ -80,8 +80,8 @@ void SSIM<Dtype>::CalculateSSIM(const Dtype *img1_data,
       for (int col_idx = 0; col_idx < width_; col_idx++) {
         int source = chan_idx * width_ * height_ + row_idx * width_ + col_idx;
         int target = row_idx * width_ * nChan_ + col_idx * nChan_ + chan_idx;
-        img1_data_rfmt[target] = img1_data[source];
-        img2_data_rfmt[target] = img2_data[source];
+        img1_data_rfmt[target] = (Dtype) roundf(img1_data[source]);
+        img2_data_rfmt[target] = (Dtype) roundf(img2_data[source]);
       }
     }
   }
@@ -142,8 +142,9 @@ void SSIM<Dtype>::CalculateSSIM(const Dtype *img1_data,
   // ((2*mu1_mu2 + C1).*(2*sigma12 + C2))./((mu1_sq + mu2_sq + C1).*(sigma1_sq + sigma2_sq + C2))
   cvDiv(temp3, temp1, ssim_map, 1);
 
-  //CvScalar index_scalar = cvAvg( ssim_map );
-  //printf("SSIM r=%.2f g=%.2f b=%.2f\n", index_scalar.val[2] * 100, index_scalar.val[1] * 100, index_scalar.val[0] * 100 );
+  /*CvScalar index_scalar = cvAvg( ssim_map );
+  printf("SSIM r=%.2f g=%.2f b=%.2f\n", index_scalar.val[2] * 100, index_scalar.val[1] * 100, index_scalar.val[0] * 100 );
+  */
 
   // Step 3 copy ssim_map to top
   Dtype *data = (Dtype *) ssim_map->imageData;
@@ -160,5 +161,4 @@ void SSIM<Dtype>::CalculateSSIM(const Dtype *img1_data,
 }
 
 INSTANTIATE_CLASS(SSIM);
-
 }
