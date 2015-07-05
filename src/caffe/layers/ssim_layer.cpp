@@ -24,6 +24,9 @@ void SSIMLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 	int nChan=3, d=IPL_DEPTH_32F;
 	CvSize size = cvSize(x, y);
   ssim.LayerSetUp(x,y, nChan);
+  if( sizeof(Dtype) != sizeof(float) ) {
+    throw std::runtime_error("SSIM layer only supports float");
+  }
 }
 
 template <typename Dtype>
@@ -38,7 +41,6 @@ void SSIMLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   top[0]->ReshapeLike(*bottom[0]);
   vector<int> shape = bottom[0]->shape();
   shape[0] = 1;
-  ssim.Reshape(shape);
 }
 
 
@@ -61,8 +63,7 @@ void SSIMLayer<Dtype>::Forward_cpu(
     const Dtype* img2_data = bottom1data + image_idx*imageSize;
 
     Dtype* target = topData + image_idx*imageSize;
-
-    ssim.CalculateSSIM(img1_data, img2_data, target);
+    ssim.CalculateSSIM((float*)img1_data, (float*)img2_data, (float*)target);
 
     // Rescale to [0,1]
     caffe_scal(

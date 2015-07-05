@@ -894,7 +894,7 @@ protected:
   Blob<Dtype> diff_;
   Blob<Dtype> ssim_data_;
 
-  SSIM<Dtype> ssim;
+  SSIM ssim;
 };
 
 }  // namespace caffe

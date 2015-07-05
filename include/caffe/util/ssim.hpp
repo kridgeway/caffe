@@ -6,7 +6,6 @@
 typedef struct _IplImage IplImage;
 
 namespace caffe {
-template<typename Dtype>
 class SSIM {
 public:
   bool debug;
@@ -15,12 +14,14 @@ public:
   virtual ~SSIM();
 
   virtual void LayerSetUp(int x, int y, int nChan);
-
-  virtual void Reshape(std::vector<int> shape);
-
-  virtual void CalculateSSIM(const Dtype *img1_data,
-                             const Dtype *img2_data,
-                             Dtype *target, Dtype* target_gradient=NULL);
+  virtual void caffeToCV(std::vector<const float*>& caffeData,
+                         std::vector<float*>& cvData, bool convert );
+  virtual void cvToCaffe(std::vector<const float*>& cvData,
+                         std::vector<float*>& caffeData, bool convert);
+  virtual void CalculateSSIM(const float *img1_data,
+                             const float *img2_data,
+                             float *target, float* target_gradient=NULL,
+                             bool convertCVCaffe=true);
 
 protected:
   IplImage
@@ -31,8 +32,6 @@ protected:
     *sigma1_sq, *sigma2_sq, *sigma12,
     *a1_a2,*b1_b2, *a1, *a2, *b1, *b2,
     *ssim_map, *temp1, *temp2, *temp3, *gradient;
-  caffe::Blob<Dtype> img1_reformatted_;
-  caffe::Blob<Dtype> img2_reformatted_;
   int nChan_;
   int height_;
   int width_;

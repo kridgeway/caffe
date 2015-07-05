@@ -17,7 +17,9 @@ void SSIMLossLayer<Dtype>::Reshape(
   ssim_data_.ReshapeLike(*bottom[0]);
   vector<int> shape = bottom[0]->shape();
   shape[0] = 1;
-  ssim.Reshape(shape);
+  if( sizeof(Dtype) != sizeof(float) ) {
+    throw std::runtime_error("SSIM layer only supports float");
+  }
 }
 
 template <typename Dtype>
@@ -54,7 +56,7 @@ void SSIMLossLayer<Dtype>::Forward_cpu(
     Dtype* target = topData + image_idx*imageSize;
     Dtype* target_gradient = gradientData + image_idx*imageSize;
     ssim.debug = image_idx == 0;
-    ssim.CalculateSSIM(img1_data, img2_data, target, target_gradient);
+    ssim.CalculateSSIM((float*)img1_data, (float*)img2_data, (float*)target, (float*)target_gradient);
   }
   Dtype sumSSIM = caffe_cpu_asum(count, ssim_data_.cpu_data() );
   Dtype loss =  sumSSIM / bottom[0]->count();

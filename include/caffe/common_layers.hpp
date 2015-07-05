@@ -540,7 +540,7 @@ class SSIMLayer : public Layer<Dtype> {
     }
   }
 
-  SSIM<Dtype> ssim;
+  SSIM ssim;
 };
 
 }  // namespace caffe
