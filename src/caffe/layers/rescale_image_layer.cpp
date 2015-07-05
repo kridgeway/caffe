@@ -60,10 +60,46 @@ void RescaleImageLayer<Dtype>::Rescale( Blob<Dtype>* source, Blob<Dtype>* target
 }
 
 template <typename Dtype>
+void RescaleImageLayer<Dtype>::UnRescale( Blob<Dtype>* source, Blob<Dtype>* target ) {
+  int d = source->count() / source->num();
+  caffe_copy(source->count(), source->cpu_diff(), target->mutable_cpu_diff());
+  for( int idx =0; idx < source->num(); idx++ ) {
+    //unscale
+    caffe_scal(
+        d,
+        scale_,
+        target->mutable_cpu_diff()+idx*d
+    );
+    /*
+    caffe_sub(
+        d,
+        target->cpu_diff()+idx*d,
+        data_mean_flat_.cpu_data(),
+        target->mutable_cpu_diff()+idx*d
+    );
+    if( idx == 0 ) {
+      printf("Post-mean %f ", target->mutable_cpu_diff()[0] );
+    }
+    */
+  }
+  //printf("Rescaling (%f) d=%d num=%d Before %f After %f\n", scale_, d, source->num(), source->cpu_diff()[0], target->cpu_diff()[0] );
+}
+
+template <typename Dtype>
 void RescaleImageLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   for( int idx=0; idx < bottom.size(); idx++ ) {
-      Rescale( bottom[idx], top[idx] );
+    Rescale( bottom[idx], top[idx] );
+  }
+}
+
+template <typename Dtype>
+void RescaleImageLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
+    const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
+  for (int i = 0; i < bottom.size(); ++i) {
+    if (propagate_down[i]) {
+      UnRescale( top[i], bottom[i] );
+    }
   }
 }
 

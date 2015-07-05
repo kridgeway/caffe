@@ -52,12 +52,14 @@ void SSIMLossLayer<Dtype>::Forward_cpu(
     const Dtype* img1_data = bottom0data + image_idx*imageSize;
     const Dtype* img2_data = bottom1data + image_idx*imageSize;
     Dtype* target = topData + image_idx*imageSize;
-    Dtype* target_gradient = gradientData + image_idx *imageSize;
+    Dtype* target_gradient = gradientData + image_idx*imageSize;
+    ssim.debug = image_idx == 0;
     ssim.CalculateSSIM(img1_data, img2_data, target, target_gradient);
   }
   Dtype sumSSIM = caffe_cpu_asum(count, ssim_data_.cpu_data() );
   Dtype loss =  sumSSIM / bottom[0]->count();
   top[0]->mutable_cpu_data()[0] = loss;
+  //printf("img1[0] = %f img2[0] = %f\n", bottom0data[0], bottom1data[0]);
 }
 
 template <typename Dtype>
@@ -67,13 +69,18 @@ void SSIMLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   for (int i = 0; i < 2; ++i) {
     if (propagate_down[i]) {
       const Dtype sign = (i == 0) ? 1 : -1;
+      //const Dtype sign = (i == 0) ? -1 : 1;
       const Dtype alpha = sign * top[0]->cpu_diff()[0] / bottom[i]->num();
+      //if( i == 1 )
+      //  printf("Delta %f alpha = %f\n", bottom[i]->mutable_cpu_diff()[0], alpha );
       caffe_cpu_axpby(
         bottom[i]->count(),
         alpha,
         diff_.cpu_data(),
         Dtype(0),
         bottom[i]->mutable_cpu_diff());
+      //if( i == 1 )
+      //  printf("Delta after %f\n",  bottom[i]->mutable_cpu_diff()[0] );
     }
   }
 }

@@ -503,16 +503,9 @@ protected:
   virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
-      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
-    for (int i = 0; i < propagate_down.size(); ++i) {
-      if (propagate_down[i]) {
-        caffe_set(bottom[i]->count(),
-            Dtype(0),
-            bottom[0]->mutable_cpu_data() );
-      }
-    }
-  }
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom); 
   void Rescale( Blob<Dtype>* source, Blob<Dtype>* target );
+  void UnRescale( Blob<Dtype>* source, Blob<Dtype>* target );
   Blob<Dtype> data_mean_;
   Blob<Dtype> data_mean_flat_;
   Dtype scale_;

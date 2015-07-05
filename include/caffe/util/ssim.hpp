@@ -9,6 +9,7 @@ namespace caffe {
 template<typename Dtype>
 class SSIM {
 public:
+  bool debug;
   SSIM();
 
   virtual ~SSIM();

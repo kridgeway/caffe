@@ -9,7 +9,7 @@
 namespace caffe {
 
 template<typename Dtype>
-SSIM<Dtype>::SSIM() { }
+SSIM<Dtype>::SSIM() { debug = false; }
 
 template<typename Dtype>
 SSIM<Dtype>::~SSIM() {
@@ -30,6 +30,13 @@ SSIM<Dtype>::~SSIM() {
   cvReleaseImage(&temp2);
   cvReleaseImage(&temp3);
   cvReleaseImage(&ssim_map);
+  cvReleaseImage(&a1_a2);
+  cvReleaseImage(&b1_b2);
+  cvReleaseImage(&a1);
+  cvReleaseImage(&a2);
+  cvReleaseImage(&b1);
+  cvReleaseImage(&b2);
+  cvReleaseImage(&gradient);
 }
 
 template<typename Dtype>
@@ -59,6 +66,13 @@ void SSIM<Dtype>::LayerSetUp(int width, int height, int nChan) {
   temp2 = cvCreateImage(size, d, nChan);
   temp3 = cvCreateImage(size, d, nChan);
   ssim_map = cvCreateImage(size, d, nChan);
+  a1_a2= cvCreateImage(size, d, nChan);
+  b1_b2 = cvCreateImage(size, d, nChan);
+  a1 = cvCreateImage(size, d, nChan);
+  a2 = cvCreateImage(size, d, nChan);
+  b1 = cvCreateImage(size, d, nChan);
+  b2 = cvCreateImage(size, d, nChan);
+  gradient = cvCreateImage(size, d, nChan);
 }
 
 template<typename Dtype>
@@ -67,14 +81,34 @@ void SSIM<Dtype>::Reshape(std::vector<int> shape) {
   img2_reformatted_.Reshape(shape);
 }
 
-/**
-IplImage  *out  = cvCreateImage( cvSize(width,height), IPL_DEPTH_8U, 3);
-cvCvtScale(img1,out,1,0);
-cvSaveImage("img1.png",out);
-cvCvtScale(img2,out,1,0);
-cvSaveImage("img2.png",out);
-cvReleaseImage(&out);
-*/
+void saveValues( IplImage* img, char* filename ) {
+  FILE* f = fopen(filename,"w");
+  int channel = 1;
+  float* data = (float*)img->imageData;
+  for( int col = 0; col < img->width; col++ ) {
+    for( int row = 0; row < img->height; row++ ) {
+      int idx = row * img->height * 3 + col * 3 + channel;
+      fprintf(f, "%.15f ", data[idx] );
+    }
+  }
+  fclose(f);
+}
+
+/*
+void saveValues( IplImage* img, char* filename ) {
+  FILE* f = fopen(filename,"w");
+  float* data = (float*) img->imageData;
+  for( int i = 0; i < img->width*img->height*3; i++ ) {
+    fprintf(f, "%.15f ", data[i] );
+  }
+  fclose(f);
+} */
+void saveImage( IplImage* img, char* filename) {
+  IplImage  *out  = cvCreateImage( cvSize(img->width,img->height), IPL_DEPTH_8U, 3);
+  cvCvtScale(img,out,1,0);
+  cvSaveImage(filename,out);
+  cvReleaseImage(&out);
+}
 template<typename Dtype>
 void SSIM<Dtype>::CalculateSSIM(const Dtype *img1_data,
                                 const Dtype *img2_data,
@@ -148,19 +182,25 @@ void SSIM<Dtype>::CalculateSSIM(const Dtype *img1_data,
     ssimGradient();
   //CvScalar index_scalar = cvAvg( ssim_map );
   //printf("SSIM r=%.2f g=%.2f b=%.2f\n", index_scalar.val[2] * 100, index_scalar.val[1] * 100, index_scalar.val[0] * 100 );
+  if( debug ) {
+    saveImage( img1, "img1.png");
+    saveImage( img2, "img2.png");
+    saveValues( ssim_map, "ssim_map.vector");
+    saveValues( gradient, "gradient.vector");
+  }
 
   // Step 3 copy ssim_map to top
-  Dtype *data = (Dtype *) ssim_map->imageData;
-  Dtype *gdata = (Dtype *) gradient->imageData;
+  float *data = (float *) ssim_map->imageData;
+  float *gdata = (float *) gradient->imageData;
   //Dtype* target = topData + image_idx*imageSize;
   for( int chan_idx = 0; chan_idx < nChan_; chan_idx++ ) {
     for( int row_idx = 0; row_idx < height_; row_idx++) {
       for(int col_idx = 0; col_idx < width_; col_idx++ ) {
         int target_idx = chan_idx * width_ * height_ + row_idx * width_ + col_idx;
         int source_idx = row_idx * width_ * nChan_ + col_idx * nChan_ + chan_idx;
-        target[target_idx] = data[source_idx];
+        target[target_idx] = (Dtype)data[source_idx];
         if( compute_gradient )
-          target_gradient[target_idx] = gdata[source_idx];
+          target_gradient[target_idx] = (Dtype)gdata[source_idx];
       }
     }
   }
