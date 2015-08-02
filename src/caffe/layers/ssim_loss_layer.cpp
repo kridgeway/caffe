@@ -55,7 +55,7 @@ void SSIMLossLayer<Dtype>::Forward_cpu(
     const Dtype* img2_data = bottom1data + image_idx*imageSize;
     Dtype* target = topData + image_idx*imageSize;
     Dtype* target_gradient = gradientData + image_idx*imageSize;
-    ssim.debug = image_idx == 0;
+    //ssim.debug = image_idx == 0;
     ssim.CalculateSSIM((float*)img1_data, (float*)img2_data, (float*)target, (float*)target_gradient, true);
     if( image_idx == 0 && false ) {
       Dtype img1Sum = caffe_cpu_asum( 32*32*3, (float*)img1_data );
