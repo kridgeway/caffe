@@ -509,6 +509,8 @@ protected:
   Blob<Dtype> data_mean_;
   Blob<Dtype> data_mean_flat_;
   Dtype scale_;
+  Dtype mean_value_;
+  bool has_data_mean_;
 };
 
 template <typename Dtype>

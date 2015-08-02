@@ -102,7 +102,7 @@ void SSIM::caffeToCV(std::vector<const float*>& caffeData, std::vector<float*>& 
           source = target;
         }
         for( size_t idx = 0; idx < caffeData.size(); idx++ ) {
-          cvData[idx][target] = caffeData[idx][source];
+          cvData[idx][target] = std::max( std::min( caffeData[idx][source], 255.0f), 0.0f);
         }
       }
     }
@@ -196,6 +196,7 @@ void SSIM::CalculateSSIM(const float *img1_data,
     saveValues( ssim_map, "caffessim_map.vec");
     saveValues( gradient, "caffessim_gradient.vec");
   }
+  cvScale(gradient, gradient, 50);
 
   // Step 3 copy ssim_map to top
   float *data = (float *) ssim_map->imageData;

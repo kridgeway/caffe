@@ -731,8 +731,9 @@ message SoftmaxParameter {
 }
 
 message RescaleImageParameter {
-  required string mean_file = 1;
+  optional string mean_file = 1 [default = ""];
   required float scale = 2;
+  optional float mean_value = 3 [default = 0];
 }
 
 // Message that stores parameters used by TanHLayer
