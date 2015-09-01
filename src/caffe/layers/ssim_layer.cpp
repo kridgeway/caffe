@@ -19,10 +19,11 @@ void SSIMLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   //int x=img1_temp->width, y=img1_temp->height;
   size_t dim = (size_t)(bottom[0]->count() / bottom[0]->num());
   //TODO this assumes square images with 3 channels, which might not be the case
-  int x = (int)floor( sqrt(dim/3) );
-  int y = x;
-	int nChan=3, d=IPL_DEPTH_32F;
-	CvSize size = cvSize(x, y);
+  std::vector<int> shape = bottom[0]->shape();
+  int x= shape[2];
+  int y= shape[3];
+  int nChan= shape[1];
+  int d=IPL_DEPTH_32F;
   ssim.LayerSetUp(x,y, nChan);
   if( sizeof(Dtype) != sizeof(float) ) {
     throw std::runtime_error("SSIM layer only supports float");
@@ -48,9 +49,11 @@ template <typename Dtype>
 void SSIMLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   size_t dim = (size_t)(bottom[0]->count() / bottom[0]->num());
-  int width = (int)( sqrt(dim/3) );
-  int height = width;
-  int nChan=3, d=IPL_DEPTH_32F;
+  std::vector<int> shape = bottom[0]->shape();
+  int height= shape[2];
+  int width= shape[3];
+  int nChan= shape[1];
+  int d=IPL_DEPTH_32F;
   size_t imageSize = (size_t) width*height*nChan;
   // default settings
 

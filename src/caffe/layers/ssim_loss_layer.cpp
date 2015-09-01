@@ -13,10 +13,12 @@ void SSIMLossLayer<Dtype>::Reshape(
   LossLayer<Dtype>::Reshape(bottom, top);
   CHECK_EQ(bottom[0]->count(1), bottom[1]->count(1)) << "Inputs must have the same dimension.";
   CHECK_EQ(bottom[0]->count(1), bottom[1]->count(1)) << "Weight data must have same dimension";
+  CHECK_EQ(bottom[0]->shape()[0], bottom[1]->shape()[0]);
+  CHECK_EQ(bottom[0]->shape()[1], bottom[1]->shape()[1]);
+  CHECK_EQ(bottom[0]->shape()[2], bottom[1]->shape()[2]);
+  CHECK_EQ(bottom[0]->shape()[3], bottom[1]->shape()[3]);
   diff_.ReshapeLike(*bottom[0]);
   ssim_data_.ReshapeLike(*bottom[0]);
-  vector<int> shape = bottom[0]->shape();
-  shape[0] = 1;
   if( sizeof(Dtype) != sizeof(float) ) {
     throw std::runtime_error("SSIM layer only supports float");
   }
@@ -26,11 +28,11 @@ template <typename Dtype>
 void SSIMLossLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
                                   const vector<Blob<Dtype>*>& top) {
   size_t dim = (size_t)(bottom[0]->count() / bottom[0]->num());
-  //TODO this assumes square images with 3 channels, which might not be the case
-  int x = (int)floor( sqrt(dim/3) );
-  int y = x;
-  int nChan=3;
-  ssim.LayerSetUp(x,y, nChan);
+  std::vector<int> shape = bottom[0]->shape();
+  int nChan = shape[1];
+  int height = shape[2];
+  int width = shape[3];
+  ssim.LayerSetUp(width,height, nChan);
 }
 
 template <typename Dtype>
@@ -40,13 +42,13 @@ void SSIMLossLayer<Dtype>::Forward_cpu(
   int count = bottom[0]->count();
 
   size_t dim = (size_t)(bottom[0]->count() / bottom[0]->num());
-  int width = (int)( sqrt(dim/3) );
-  int height = width;
-  int nChan=3;
+  std::vector<int> shape = bottom[0]->shape();
+  int nChan = shape[1];
+  int height = shape[2];
+  int width = shape[3];
   int imageSize = width*height*nChan;
   const Dtype* bottom0data = bottom[0]->cpu_data();
   const Dtype* bottom1data = bottom[1]->cpu_data();
-  //Dtype* topData = top[0]->mutable_cpu_data();
   Dtype* topData = ssim_data_.mutable_cpu_data();
   Dtype* gradientData = diff_.mutable_cpu_data();
 
@@ -55,7 +57,6 @@ void SSIMLossLayer<Dtype>::Forward_cpu(
     const Dtype* img2_data = bottom1data + image_idx*imageSize;
     Dtype* target = topData + image_idx*imageSize;
     Dtype* target_gradient = gradientData + image_idx*imageSize;
-    //ssim.debug = image_idx == 0;
     ssim.CalculateSSIM((float*)img1_data, (float*)img2_data, (float*)target, (float*)target_gradient, true);
     if( image_idx == 0 && false ) {
       Dtype img1Sum = caffe_cpu_asum( 32*32*3, (float*)img1_data );

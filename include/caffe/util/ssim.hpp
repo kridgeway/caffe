@@ -1,6 +1,4 @@
 #pragma once
-#include <cv.h>
-#include <highgui.h>
 #include <vector>
 
 typedef struct _IplImage IplImage;
